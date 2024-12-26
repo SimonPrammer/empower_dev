@@ -4,48 +4,82 @@ from torch.utils.data import Dataset
 
 class SlidingWindowDataset(Dataset):
     def __init__(self, data_file, label_file, window_size, stride):
+        # Read data
         try:
-            self.data = pd.read_csv(data_file, engine='python')  # Specify the Python engine for parsing
+            data = pd.read_csv(data_file, engine='python')
         except Exception as e:
             raise ValueError(f"Error reading data file {data_file}: {e}")
 
+        # Read labels
         try:
-            self.labels = pd.read_csv(label_file, engine='python')  # Specify the Python engine for parsing
+            labels = pd.read_csv(label_file, engine='python')
         except Exception as e:
             raise ValueError(f"Error reading label file {label_file}: {e}")
 
-        # Ensure alignment of gidx between data and labels
-        valid_gidx = set(self.labels['gidx'])
-        self.data = self.data[self.data['gidx'].isin(valid_gidx)]
+        # Optional: Filter data to keep only gidx present in labels
+        valid_gidx = set(labels["gidx"])
+        data = data[data["gidx"].isin(valid_gidx)]
 
         self.window_size = window_size
         self.stride = stride
 
-        # Recalculate total windows after filtering
-        self.total_windows = (len(self.data) - window_size) // stride + 1
+        # We'll accumulate all sub-windows and their labels into lists
+        self.windows = []
+        self.targets = []
 
-        # Create mapping of gidx to labels
-        self.label_mapping = self.labels.set_index("gidx")
-        self.data_gidx = self.data["gidx"].values[: self.total_windows]
+        # Make sure (gidx, widx) is unique in labels (or handle duplicates)
+        # We'll create a lookup table: (gidx, widx) -> row in labels
+        # If your label CSV has exactly one row per (gidx, widx),
+        # then set_index is enough:
+        label_lookup = labels.set_index(["gidx", "widx"])
 
+        # Group data by (gidx, widx) so we can apply sliding windows chunk by chunk
+        grouped = data.groupby(["gidx", "widx"], sort=False)
+
+        for (g, w), chunk_df in grouped:
+            # Sort each chunk by tidx to ensure correct time order
+            chunk_df = chunk_df.sort_values("tidx")
+
+            # Drop identifying columns to leave only feature columns
+            chunk_values = chunk_df.drop(columns=["gidx", "widx", "tidx"]).values
+            num_rows = len(chunk_values)
+
+            # Check if we have a label row for (gidx, widx)
+            if (g, w) not in label_lookup.index:
+                # If no matching label found, skip (or raise an error)
+                continue
+
+            # Get the single label from that row
+            label_row = label_lookup.loc[(g, w)]
+            # If there's only 1 row per (g,w), label_row["sidx"] is scalar
+            sidx_label = label_row["sidx"]
+
+            # Compute how many sub-windows can be extracted from this chunk
+            num_windows = (num_rows - window_size) // stride + 1
+            if num_windows < 1:
+                # No sub-window fits for this chunk
+                continue
+
+            # Slide over the chunk
+            for i in range(num_windows):
+                start_idx = i * stride
+                end_idx = start_idx + window_size
+                window_data = chunk_values[start_idx:end_idx]
+
+                # Transpose to [num_features, window_size]
+                window_data = window_data.T
+
+                # Store the window and label
+                self.windows.append(window_data)
+                self.targets.append(sidx_label)
 
     def __len__(self):
-        return self.total_windows
+        return len(self.windows)
 
     def __getitem__(self, idx):
-        start_idx = idx * self.stride
-        end_idx = start_idx + self.window_size
-
-        # Extract the window data
-        window = self.data.iloc[start_idx:end_idx].drop(columns=["gidx", "widx", "tidx"]).values
-
-        # Transpose window to match [features, sequence]
-        window = window.T  # Transpose: [window_size, num_features] -> [num_features, window_size]
-
-        # Retrieve the corresponding label using gidx
-        gidx = self.data_gidx[idx]
-        label_row = self.label_mapping.loc[gidx]
-        label = label_row["sidx"]
-
-        return torch.tensor(window, dtype=torch.float32), torch.tensor(label, dtype=torch.long)
-
+        window = self.windows[idx]
+        label = self.targets[idx]
+        # Convert to tensors
+        window_tensor = torch.tensor(window, dtype=torch.float32)
+        label_tensor = torch.tensor(label, dtype=torch.long)
+        return window_tensor, label_tensor
