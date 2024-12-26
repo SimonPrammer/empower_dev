@@ -1,13 +1,13 @@
 #%%
-
 import os
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
+import torch.optim as optim
 from sliding_window_dataset import SlidingWindowDataset
 from cnn1d_model import CNN1D
+
 
 # Parameters
 num_features = 72  # Adjust if different
@@ -30,10 +30,17 @@ test_label_file = os.path.join(data_dir, "testing_y.csv")
 train_dataset = SlidingWindowDataset(train_data_file, train_label_file, window_size, stride)
 test_dataset = SlidingWindowDataset(test_data_file, test_label_file, window_size, stride)
 
+# Sanity check
+if len(train_dataset) == 0:
+    print("Warning: Train dataset is empty after grouping/filtering.")
+if len(test_dataset) == 0:
+    print("Warning: Test dataset is empty after grouping/filtering.")
+
 # Test shape compatibility
-sample_window, sample_label = train_dataset[0]
-print(f"Sample window shape: {sample_window.shape}")  # Should be [num_features, sequence_length]
-print(f"Sample label: {sample_label}")
+if len(train_dataset) > 0:
+    sample_window, sample_label = train_dataset[0]
+    print(f"Sample window shape: {sample_window.shape} (should be [num_features, window_size])")
+    print(f"Sample label: {sample_label}")
 
 # Split train dataset into training and validation sets
 train_size = int((1 - validation_split) * len(train_dataset))
@@ -50,9 +57,6 @@ model = CNN1D(num_features=num_features, sequence_length=window_size, num_classe
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-
-
-
 # Training loop with validation
 for epoch in range(num_epochs):
     model.train()
@@ -60,14 +64,14 @@ for epoch in range(num_epochs):
     progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}")
 
     for inputs, labels in progress_bar:
+        # inputs shape: [batch_size, num_features, window_size]
         optimizer.zero_grad()
-        outputs = model(inputs)
+        outputs = model(inputs)  # No permute here
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
         train_loss += loss.item()
         progress_bar.set_postfix(loss=loss.item())
-
 
     # Validation
     model.eval()
@@ -76,7 +80,7 @@ for epoch in range(num_epochs):
     total = 0
     with torch.no_grad():
         for inputs, labels in val_loader:
-            inputs = inputs.permute(0, 2, 1)
+            # Also no permute here
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             val_loss += loss.item()
@@ -84,9 +88,15 @@ for epoch in range(num_epochs):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
+    avg_train_loss = train_loss / len(train_loader) if len(train_loader) > 0 else 0
+    avg_val_loss = val_loss / len(val_loader) if len(val_loader) > 0 else 0
+    val_accuracy = 100.0 * correct / total if total > 0 else 0.0
+
     print(
-        f"Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss/len(train_loader):.4f}, "
-        f"Validation Loss: {val_loss/len(val_loader):.4f}, Validation Accuracy: {100 * correct / total:.2f}%"
+        f"Epoch {epoch+1}/{num_epochs}, "
+        f"Train Loss: {avg_train_loss:.4f}, "
+        f"Val Loss: {avg_val_loss:.4f}, "
+        f"Val Acc: {val_accuracy:.2f}%"
     )
 
 # Testing
@@ -96,7 +106,7 @@ correct = 0
 total = 0
 with torch.no_grad():
     for inputs, labels in test_loader:
-        inputs = inputs.permute(0, 2, 1)
+        # No permute
         outputs = model(inputs)
         loss = criterion(outputs, labels)
         test_loss += loss.item()
@@ -104,6 +114,8 @@ with torch.no_grad():
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
-print(
-    f"Test Loss: {test_loss/len(test_loader):.4f}, Test Accuracy: {100 * correct / total:.2f}%"
-)
+avg_test_loss = test_loss / len(test_loader) if len(test_loader) > 0 else 0
+test_accuracy = 100.0 * correct / total if total > 0 else 0.0
+print(f"Test Loss: {avg_test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%")
+
+
