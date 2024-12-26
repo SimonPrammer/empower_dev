@@ -1,6 +1,8 @@
 import torch
 import unittest
-from cnn1d import CNN1D
+from cnn1d_model import CNN1D
+from legacy_data_loader import data_loader
+import os
 
 class TestCNN1D(unittest.TestCase):
     def setUp(self):
@@ -38,6 +40,21 @@ class TestCNN1D(unittest.TestCase):
         output = self.model(input_tensor)
         self.assertEqual(output.shape, (1, self.num_classes),
                          f"Dataset simulation failed: {output.shape} instead of (1, {self.num_classes})")
+        
+    def test_with_real_data(self):
+        """Test if the model runs with real data from training.csv."""
+        file_path = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms", "training.csv")
+        data = data_loader(file_path, self.num_features, self.sequence_length)
+        
+        # Take a batch from the real data
+        batch_size = min(self.batch_size, data.size(0))  # Ensure batch size is valid
+        input_tensor = data[:batch_size]
+        
+        # Pass through the model
+        output = self.model(input_tensor)
+        self.assertEqual(output.shape, (batch_size, self.num_classes),
+                        f"Unexpected output shape: {output.shape}, expected ({batch_size}, {self.num_classes})")
+
 
 if __name__ == "__main__":
     unittest.main()
