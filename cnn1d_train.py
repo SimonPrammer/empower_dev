@@ -1,60 +1,59 @@
 #%%
 
-# Imports
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-import pandas as pd
+from sliding_window_dataset import SlidingWindowDataset
 from cnn1d_model import CNN1D
-from legacy_data_loader import data_loader
 
 # Parameters
-num_features = 72
-sequence_length = 30
+num_features = 72  # Adjust if different
+window_size = 30
+stride = 15
 num_classes = 5
 batch_size = 32
 num_epochs = 10
 learning_rate = 0.001
+validation_split = 0.2
 
 # File paths
-train_X_file_path = "data/2024-11-24T10_13_28_d300sec_w1000ms/training.csv"
-train_Y_file_path = "data/2024-11-24T10_13_28_d300sec_w1000ms/training_y.csv"
-test_X_file_path = "data/2024-11-24T10_13_28_d300sec_w1000ms/testing.csv"
-test_Y_file_path = "data/2024-11-24T10_13_28_d300sec_w1000ms/testing_y.csv"
+data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
+train_data_file = os.path.join(data_dir, "training.csv")
+train_label_file = os.path.join(data_dir, "training_y.csv")
+test_data_file = os.path.join(data_dir, "testing.csv")
+test_label_file = os.path.join(data_dir, "testing_y.csv")
 
-# Data Loading
-train_X = data_loader(train_X_file_path, num_features, sequence_length)
-train_Y = torch.tensor(pd.read_csv(train_Y_file_path)['sidx'].values, dtype=torch.long)
-test_X = data_loader(test_X_file_path, num_features, sequence_length)
-test_Y = torch.tensor(pd.read_csv(test_Y_file_path)['sidx'].values, dtype=torch.long)
+# Load datasets
+train_dataset = SlidingWindowDataset(train_data_file, train_label_file, window_size, stride)
+test_dataset = SlidingWindowDataset(test_data_file, test_label_file, window_size, stride)
 
-# Sanity check for size matches
-assert len(train_X) == len(train_Y), "Mismatch between train_X and train_Y sizes!"
-assert len(test_X) == len(test_Y), "Mismatch between test_X and test_Y sizes!"
+# Test shape compatibility
+sample_window, sample_label = train_dataset[0]
+print(f"Sample window shape: {sample_window.shape}")  # Should be [num_features, sequence_length]
+print(f"Sample label: {sample_label}")
 
-# Split training data into training and validation sets
-train_X, val_X, train_Y, val_Y = train_test_split(
-    train_X, train_Y, test_size=0.2, random_state=42
-)
+# Split train dataset into training and validation sets
+train_size = int((1 - validation_split) * len(train_dataset))
+val_size = len(train_dataset) - train_size
+train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
-# Create DataLoaders
-train_dataset = TensorDataset(train_X, train_Y)
-val_dataset = TensorDataset(val_X, val_Y)
-test_dataset = TensorDataset(test_X, test_Y)
-
+# DataLoaders
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size)
 test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
 # Model, Loss, Optimizer
-model = CNN1D(num_features, sequence_length, num_classes)
+model = CNN1D(num_features=num_features, sequence_length=window_size, num_classes=num_classes)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# Training loop with validation and progress bar
+
+
+
+# Training loop with validation
 for epoch in range(num_epochs):
     model.train()
     train_loss = 0.0
@@ -69,13 +68,15 @@ for epoch in range(num_epochs):
         train_loss += loss.item()
         progress_bar.set_postfix(loss=loss.item())
 
-    # Validation after each epoch
+
+    # Validation
     model.eval()
     val_loss = 0.0
     correct = 0
     total = 0
     with torch.no_grad():
         for inputs, labels in val_loader:
+            inputs = inputs.permute(0, 2, 1)
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             val_loss += loss.item()
@@ -88,8 +89,6 @@ for epoch in range(num_epochs):
         f"Validation Loss: {val_loss/len(val_loader):.4f}, Validation Accuracy: {100 * correct / total:.2f}%"
     )
 
-
-#%%
 # Testing
 model.eval()
 test_loss = 0.0
@@ -97,6 +96,7 @@ correct = 0
 total = 0
 with torch.no_grad():
     for inputs, labels in test_loader:
+        inputs = inputs.permute(0, 2, 1)
         outputs = model(inputs)
         loss = criterion(outputs, labels)
         test_loss += loss.item()
