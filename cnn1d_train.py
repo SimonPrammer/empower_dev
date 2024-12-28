@@ -10,14 +10,15 @@ from cnn1d_model import CNN1D
 
 
 # Parameters
-num_features = 72  # Adjust if different
-window_size = 60
-stride = 15
+num_features = 72 
+window_size = 60  # Adjust per file
 num_classes = 5
 batch_size = 32
-num_epochs = 10
+num_epochs = 20
 learning_rate = 0.001
 validation_split = 0.2
+window_size = 15
+
 
 # File paths
 data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
@@ -27,8 +28,19 @@ test_data_file = os.path.join(data_dir, "testing.csv")
 test_label_file = os.path.join(data_dir, "testing_y.csv")
 
 # Load datasets
-train_dataset = SlidingWindowDataset(train_data_file, train_label_file, window_size, stride)
-test_dataset = SlidingWindowDataset(test_data_file, test_label_file, window_size, stride)
+train_dataset = SlidingWindowDataset(train_data_file, train_label_file, window_size)
+test_dataset = SlidingWindowDataset(test_data_file, test_label_file, window_size)
+
+
+# Configuration for CNN1D
+batch_size = 32
+num_features = train_dataset.windows.shape[1]  # Number of features per timestep
+sequence_length = train_dataset.windows.shape[2]  # Sequence length (window size)
+num_classes = len(torch.unique(train_dataset.targets))  # Unique class labels
+
+# Initialize the model
+model = CNN1D(num_features=num_features, sequence_length=sequence_length, num_classes=num_classes)
+
 
 # Sanity check
 if len(train_dataset) == 0:

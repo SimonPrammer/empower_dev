@@ -4,6 +4,8 @@ import os
 import torch
 import torch.nn as nn
 
+from sliding_window_dataset import SlidingWindowDataset
+
 class CNN1D(nn.Module):
     def __init__(self, num_features, sequence_length, num_classes):
         super(CNN1D, self).__init__()
@@ -44,21 +46,50 @@ if __name__ == "__main__":
                 print(f"\033[91m❌ {test_func.__name__} failed with an unexpected error: {e}\033[0m")
         wrapper()
 
-    # Test configuration
-    num_features = 72
-    sequence_length = 60
-    num_classes = 5
-    batch_size = 32
+ 
+    #load dataset
+    data_file = os.path.join("data", "2024-11-24T08_57_30_d300sec_w250ms", "training.csv")
+    label_file = os.path.join("data", "2024-11-24T08_57_30_d300sec_w250ms", "training_y.csv")
+    window_size = 15
+
+    dataset = SlidingWindowDataset(data_file, label_file, window_size)
+
+    # Configuration for CNN1D
+    batch_size = 1
+    num_features = dataset.windows.shape[1]  # Number of features per timestep
+    sequence_length = dataset.windows.shape[2]  # Sequence length (window size)
+    num_classes = len(torch.unique(dataset.targets))  # Unique class labels
+
+    print("num_features:",num_features)
+    print("sequence_length:",sequence_length)
+
+    # Initialize the model
     model = CNN1D(num_features=num_features, sequence_length=sequence_length, num_classes=num_classes)
 
-    @run_test
     def test_output_shape():
-        """Test if the model produces the correct output shape."""
-        input_tensor = torch.randn(batch_size, num_features, sequence_length)
+        model = CNN1D(num_features=72, sequence_length=15)
+        x = torch.randn(32, 72, 15)  # batch_size, features, sequence
+        out = model(x)
+        assert out.shape == (32, 5), f"Expected output shape (32, 5), got {out.shape}"
+
+
+    @run_test
+    def test_dataset_input_shape():
+        """Test if the model accepts input directly from the dataset."""
+        input_tensor, _ = dataset[0]  # Simulate a single window
+        input_tensor = input_tensor.unsqueeze(0)  # Add batch dimension
         output = model(input_tensor)
-        assert output.shape == (batch_size, num_classes), (
-            f"Unexpected output shape: {output.shape}, expected ({batch_size}, {num_classes})"
+        assert output.shape == (1, num_classes), (
+            f"Model did not produce expected output shape: {output.shape}, expected (1, {num_classes})"
         )
+
+    @run_test
+    def test_output_range():
+        """Test if model outputs valid class predictions"""
+        x = torch.randn(32, 72, 15)
+        out = model(x)
+        pred = torch.argmax(out, dim=1)
+        assert torch.all((pred >= 0) & (pred < 5)), "Predictions must be between 0 and 4"
 
     @run_test
     def test_no_nan_inf():
@@ -78,30 +109,22 @@ if __name__ == "__main__":
                 f"Unexpected output shape for batch size {b_size}: {output.shape}, expected ({b_size}, {num_classes})"
             )
 
+    # Test using real data from the dataset
     @run_test
-    def test_dataset_compatibility():
-        """Test if the model is compatible with simulated dataset input."""
-        input_tensor = torch.randn(1, num_features, sequence_length)  # Simulating one window from dataset
-        output = model(input_tensor)
-        assert output.shape == (1, num_classes), (
-            f"Dataset simulation failed: {output.shape} instead of (1, {num_classes})"
-        )
+    def test_real_data_batch():
+        """Test if the model works with a batch of real dataset input."""
+        from torch.utils.data import DataLoader
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        for batch in dataloader:
+            windows, labels = batch
+            print("windows.shape",windows.shape)
+            print("labels.shape",labels.shape)
+            output = model(windows)
+            assert output.shape == (windows.shape[0], num_classes), (
+                f"Model output shape mismatch: {output.shape}, expected ({windows.shape[0]}, {num_classes})"
+            )
+            break  # Test only the first batch
 
-    #TODO: do this with part of the dataset
-    # @run_test
-    # def test_with_real_data():
-    #     """Test if the model runs with real data from training.csv."""
-    #     file_path = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms", "training.csv")
-    #     data = 
-
-    #     # Take a batch from the real data
-    #     b_size = min(batch_size, data.size(0))  # Ensure batch size is valid
-    #     input_tensor = data[:b_size]
-
-    #     # Pass through the model
-    #     output = model(input_tensor)
-    #     assert output.shape == (b_size, num_classes), (
-    #         f"Unexpected output shape: {output.shape}, expected ({b_size}, {num_classes})"
-    #     )
-
+        print("output.shape:",output.shape)
+        print("output[0]:",output[0])
 

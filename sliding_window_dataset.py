@@ -3,125 +3,63 @@ import os
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-
-# class SlidingWindowDataset(Dataset):
-
-#     def __init__(self, data_file, label_file, window_size, stride):
-#         try:
-#             raw_data = pd.read_csv(data_file, engine='python')
-#         except Exception as e:
-#             raise ValueError(f"Error reading data file {data_file}: {e}")
-
-#         # Load CSV labels
-#         try:
-#             raw_labels = pd.read_csv(label_file, engine='python')
-#         except Exception as e:
-#             raise ValueError(f"Error reading label file {label_file}: {e}")
-        
-        
-#         # pseudo code:
-#         # get all entries with same widx pack into one window 
-#         # windows entry: wdix = idx, num_features, features = window_size
-#         # target entry: wdix = idx, window_size (??)
-#         # add the entries
-
-#         self.windows = []
-#         self.targets = []
-
-#         # i think if i get the whole dataset it would be shape:
-#         # (N / window_size), num features, window_size
-        
-
-#     def __len__(self):
-#         return len(self.windows)
-
-#     # get one item with idx aka tidx
-#     def __getitem__(self, idx):
-#         window = self.windows[idx]  # shape: (num_features, window_size)
-#         label = self.targets[idx] # (,window_size) ??
-
-#         window_tensor = torch.tensor(window, dtype=torch.float32)
-#         label_tensor = torch.tensor(label, dtype=torch.int8) # should be int as sidx is from 20-24
-#         return window_tensor, label_tensor
-
+import numpy as np
 
 
 class SlidingWindowDataset(Dataset):
-    def __init__(self, data_file, label_file, window_size, stride):
-        # Read data
-        try:
-            raw_data = pd.read_csv(data_file, engine='python')
-        except Exception as e:
-            raise ValueError(f"Error reading data file {data_file}: {e}")
-
-        # Read labels
-        try:
-            raw_labels = pd.read_csv(label_file, engine='python')
-        except Exception as e:
-            raise ValueError(f"Error reading label file {label_file}: {e}")
-
-        # Filter data to keep only gidx present in labels
-        valid_gidx = set(raw_labels["gidx"])
-        raw_data = raw_data[raw_data["gidx"].isin(valid_gidx)]
-
+    def __init__(self, data_file, label_file, window_size):
         self.window_size = window_size
-        self.stride = stride
-
-        # Keep a reference for unit-testing or debugging
-        self.raw_data = raw_data.reset_index(drop=True)
-        self.raw_labels = raw_labels.reset_index(drop=True)
-
-        # Build (gidx, widx) -> label lookup (assuming exactly one row per (gidx,widx) in label_file)
-        label_lookup = raw_labels.set_index(["gidx", "widx"])
-
-        # We'll store all sub-windows and labels here
         self.windows = []
         self.targets = []
-
-        # Group by (gidx, widx)
-        grouped = raw_data.groupby(["gidx", "widx"], sort=False)
-
-        for (g, w), chunk_df in grouped:
-            # Sort by tidx to ensure correct time order
-            chunk_df = chunk_df.sort_values("tidx")
-            chunk_values = chunk_df.drop(columns=["gidx", "widx", "tidx"]).values
-            num_rows = len(chunk_values)
-
-            # If no matching label found, skip or raise
-            if (g, w) not in label_lookup.index:
+        
+        # Load data
+        self.raw_data = pd.read_csv(data_file)
+        self.raw_labels = pd.read_csv(label_file)
+        
+        # Debug print
+        print(f"Number of label entries: {len(self.raw_labels)}")
+        
+        # Create data lookup by grouping
+        data_lookup = self.raw_data.groupby(['gidx', 'widx'])
+        
+        # Iterate over labels first
+        for idx, label_row in self.raw_labels.iterrows():
+            g = label_row['gidx']
+            w = label_row['widx']
+            
+            # Try to get corresponding data
+            try:
+                group_df = data_lookup.get_group((g, w))
+                # Get data and label
+                data = group_df.drop(columns=['gidx', 'widx', 'tidx']).values
+                label = label_row['sidx']
+                
+                # Take exactly one window from start of sequence 
+                if len(data) >= window_size:
+                    window = data[:window_size].T
+                    self.windows.append(window)
+                    self.targets.append(label)
+                    
+            except KeyError:
+                print(f"Warning: No data found for gidx={g}, widx={w}")
                 continue
 
-            label_row = label_lookup.loc[(g, w)]
-            # e.g. label_row["sidx"]
-            sidx_label = label_row["sidx"]
+        # print(f"Created {len(self.windows)} windows")
+        
+        self.windows = torch.FloatTensor(np.array(self.windows))
+        self.targets = torch.LongTensor(self.targets)
+        self.original_targets = self.targets.clone()
 
-            # Slide over this chunk
-            if num_rows >= self.window_size:
-                num_windows = (num_rows - self.window_size) // self.stride + 1
-                for i in range(num_windows):
-                    start_idx = i * self.stride
-                    end_idx = start_idx + self.window_size
-                    window_data = chunk_values[start_idx:end_idx]
-                    # Transpose to [num_features, window_size]
-                    window_data = window_data.T
-
-                    self.windows.append(window_data)
-                    self.targets.append(sidx_label)
-
+        # print(len(self.targets), len(self.windows))
+        assert len(self.targets) == len(self.windows), "Number of targets and windows don't match"
+    
     def __len__(self):
         return len(self.windows)
-
+    
     def __getitem__(self, idx):
-        window = self.windows[idx]
-        label = self.targets[idx]
-        # Convert to torch tensors
-        window_tensor = torch.tensor(window, dtype=torch.float32)
-        label_tensor = torch.tensor(label, dtype=torch.long)
-        return window_tensor, label_tensor
-
+        return self.windows[idx], self.targets[idx] - 20 # Transform 20-24 to 0-4 otherwise pytorch is screaming
 
 if __name__ == "__main__":
-
 
 
     def run_test(test_func):
@@ -139,105 +77,72 @@ if __name__ == "__main__":
                 print(f"\033[91m❌ {test_func.__name__} failed with an unexpected error: {e}\033[0m")
         wrapper()
 
-    # Setup for all tests
+    # Setup for all tests for 250ms
     data_file = os.path.join("data", "2024-11-24T08_57_30_d300sec_w250ms", "training.csv")
     label_file = os.path.join("data", "2024-11-24T08_57_30_d300sec_w250ms", "training_y.csv")
     window_size = 15
-    stride = 15
 
-    # Create dataset
-    dataset = SlidingWindowDataset(
-        data_file=data_file,
-        label_file=label_file,
-        window_size=window_size,
-        stride=stride,
-    )
+    dataset = SlidingWindowDataset(data_file, label_file, window_size)
 
- 
+    entry_index = 0 
+    window, label = dataset[entry_index]
+
+    print(f"Window (features) Shape: {window.shape}")
+    print(f"Window (features) Content:\n{window}")
+    print(f"Label: {label.item()}")
+    print("dataset len",len(dataset))
 
     raw_data = pd.read_csv(data_file, engine='python')
     raw_labels = pd.read_csv(label_file, engine='python')
 
-    valid_gidx = set(raw_labels['gidx'])
-    raw_data = raw_data[raw_data['gidx'].isin(valid_gidx)]
+    # valid_gidx = set(raw_labels['gidx'])
+    # raw_data = raw_data[raw_data['gidx'].isin(valid_gidx)]
 
-    @run_test
-    def test_file_loading():
-        """Test if files are loaded (non-empty) in the constructor."""
-        assert len(dataset.raw_data) > 0, "Data file is empty."
-        assert len(dataset.raw_labels) > 0, "Label file is empty."
-
-    @run_test
-    def test_gidx_alignment():
-        """Test if gidx values align between data and labels in the raw CSVs."""
-        data_gidx = set(raw_data["gidx"])
-        label_gidx = set(raw_labels["gidx"])
-        assert data_gidx.issubset(label_gidx), "Mismatch between gidx in data and labels."
-
-    @run_test
-    def test_total_windows():
-        """Test if total windows matches the expected count (grouping logic)."""
-        grouped = raw_data.groupby(["gidx", "widx"])
-        expected_windows = 0
-        for (_, _), chunk_df in grouped:
-            length = len(chunk_df)
-            if length >= window_size:
-                expected_windows += (length - window_size) // stride + 1
-
-        actual = len(dataset)
-        assert actual == expected_windows, f"Expected {expected_windows} windows, got {actual}."
-
-    @run_test
-    def test_window_extraction():
-        """Test if a sample window is the correct shape: [num_features, window_size]."""
-        if len(dataset) == 0:
-            print("No windows available in dataset to test extraction.")
-            return
-
-        window, label = dataset[0]
-        num_feature_cols = raw_data.shape[1] - 3
-
-        assert window.shape == (num_feature_cols, window_size), (
-            f"Window shape {window.shape} does not match expected {(num_feature_cols, window_size)}."
+    #check that first window is the same as the first window in the dataset
+    @run_test  
+    def test_first_window():
+        """Test if the first window is the same as the first window in the dataset."""
+        
+        data_lookup = raw_data.groupby(['gidx', 'widx'])
+        g = raw_labels['gidx'][0]
+        w = raw_labels['widx'][0]
+        group_df = data_lookup.get_group((g, w))
+        data = group_df.drop(columns=['gidx', 'widx', 'tidx']).values
+        window = data[:window_size].T
+        dataset_window, _ = dataset[0]
+        assert torch.allclose(torch.FloatTensor(window), dataset_window), (
+            f"First window does not match: {dataset_window} instead of {window}"
         )
-        assert isinstance(label.item(), int), "Label is not an integer."
 
+    #hard check first label should be int 20 aka mapped to 0
     @run_test
-    def test_label_assignment():
-        """Test if labels are valid integers and consistent with sidx from the label file."""
-        if len(dataset) == 0:
-            print("No windows available in dataset to test label assignment.")
-            return
-
-        for i in [0, len(dataset) // 2, len(dataset) - 1]:
-            window, label = dataset[i]
-            assert isinstance(label.item(), int), "Label is not an integer."
-
+    def test_first_label():
+        """Test if the first label is correctly transformed."""
+        _, label = dataset[0]
+        assert label.item() == 0, f"First label should be 0 (transformed from 20), got {label.item()}"
+    
+    #test last window and label
     @run_test
-    def test_error_handling():
-        """Test error handling for missing or malformed files."""
-        try:
-            SlidingWindowDataset(
-                data_file="invalid_file.csv",
-                label_file=label_file,
-                window_size=window_size,
-                stride=stride,
-            )
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("Expected ValueError for invalid data file.")
+    def test_last_window():
+        """Test if the last window is the same as the last window in the dataset."""
+        data_lookup = raw_data.groupby(['gidx', 'widx'])
+        g = raw_labels['gidx'].iloc[-1]
+        w = raw_labels['widx'].iloc[-1]
+        group_df = data_lookup.get_group((g, w))
+        data = group_df.drop(columns=['gidx', 'widx', 'tidx']).values
+        window = data[:window_size].T
+        dataset_window, _ = dataset[-1]
+        assert torch.allclose(torch.FloatTensor(window), dataset_window), (
+            f"Last window does not match: {dataset_window} instead of {window}"
+        )
 
-        try:
-            SlidingWindowDataset(
-                data_file=data_file,
-                label_file="invalid_file.csv",
-                window_size=window_size,
-                stride=stride,
-            )
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("Expected ValueError for invalid label file.")
+    #hard check last label should be int 24 aka mapped to 4
+    @run_test
+    def test_last_label():
+        """Test if the last label is correctly transformed."""
+        _, label = dataset[-1]
+        assert label.item() == 4, f"Last label should be 4 (transformed from 24), got {label.item()}"
 
-   
+ 
+    
+    
