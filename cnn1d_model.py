@@ -1,5 +1,6 @@
 #%%
 
+import os
 import torch
 import torch.nn as nn
 
@@ -25,10 +26,6 @@ class CNN1D(nn.Module):
 
 
 
-import torch
-import os
-from cnn1d_model import CNN1D
-from legacy_data_loader import data_loader
 
 if __name__ == "__main__":
 
@@ -49,7 +46,7 @@ if __name__ == "__main__":
 
     # Test configuration
     num_features = 72
-    sequence_length = 30
+    sequence_length = 60
     num_classes = 5
     batch_size = 32
     model = CNN1D(num_features=num_features, sequence_length=sequence_length, num_classes=num_classes)
@@ -90,20 +87,21 @@ if __name__ == "__main__":
             f"Dataset simulation failed: {output.shape} instead of (1, {num_classes})"
         )
 
-    @run_test
-    def test_with_real_data():
-        """Test if the model runs with real data from training.csv."""
-        file_path = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms", "training.csv")
-        data = data_loader(file_path, num_features, sequence_length)
+    #TODO: do this with part of the dataset
+    # @run_test
+    # def test_with_real_data():
+    #     """Test if the model runs with real data from training.csv."""
+    #     file_path = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms", "training.csv")
+    #     data = 
 
-        # Take a batch from the real data
-        b_size = min(batch_size, data.size(0))  # Ensure batch size is valid
-        input_tensor = data[:b_size]
+    #     # Take a batch from the real data
+    #     b_size = min(batch_size, data.size(0))  # Ensure batch size is valid
+    #     input_tensor = data[:b_size]
 
-        # Pass through the model
-        output = model(input_tensor)
-        assert output.shape == (b_size, num_classes), (
-            f"Unexpected output shape: {output.shape}, expected ({b_size}, {num_classes})"
-        )
+    #     # Pass through the model
+    #     output = model(input_tensor)
+    #     assert output.shape == (b_size, num_classes), (
+    #         f"Unexpected output shape: {output.shape}, expected ({b_size}, {num_classes})"
+    #     )
 
 

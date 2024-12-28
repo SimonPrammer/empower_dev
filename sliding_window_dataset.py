@@ -3,149 +3,105 @@ import os
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from sliding_window_dataset import SlidingWindowDataset
 
 # class SlidingWindowDataset(Dataset):
+
 #     def __init__(self, data_file, label_file, window_size, stride):
-#         # Read data
 #         try:
 #             raw_data = pd.read_csv(data_file, engine='python')
 #         except Exception as e:
 #             raise ValueError(f"Error reading data file {data_file}: {e}")
 
-#         # Read labels
+#         # Load CSV labels
 #         try:
 #             raw_labels = pd.read_csv(label_file, engine='python')
 #         except Exception as e:
 #             raise ValueError(f"Error reading label file {label_file}: {e}")
+        
+        
+#         # pseudo code:
+#         # get all entries with same widx pack into one window 
+#         # windows entry: wdix = idx, num_features, features = window_size
+#         # target entry: wdix = idx, window_size (??)
+#         # add the entries
 
-#         # Filter data to keep only gidx present in labels
-#         valid_gidx = set(raw_labels["gidx"])
-#         raw_data = raw_data[raw_data["gidx"].isin(valid_gidx)]
-
-#         self.window_size = window_size
-#         self.stride = stride
-
-#         # Keep a reference for unit-testing or debugging
-#         self.raw_data = raw_data.reset_index(drop=True)
-#         self.raw_labels = raw_labels.reset_index(drop=True)
-
-#         # Build (gidx, widx) -> label lookup (assuming exactly one row per (gidx,widx) in label_file)
-#         label_lookup = raw_labels.set_index(["gidx", "widx"])
-
-#         # We'll store all sub-windows and labels here
 #         self.windows = []
 #         self.targets = []
 
-#         # Group by (gidx, widx)
-#         grouped = raw_data.groupby(["gidx", "widx"], sort=False)
-
-#         for (g, w), chunk_df in grouped:
-#             # Sort by tidx to ensure correct time order
-#             chunk_df = chunk_df.sort_values("tidx")
-#             chunk_values = chunk_df.drop(columns=["gidx", "widx", "tidx"]).values
-#             num_rows = len(chunk_values)
-
-#             # If no matching label found, skip or raise
-#             if (g, w) not in label_lookup.index:
-#                 continue
-
-#             label_row = label_lookup.loc[(g, w)]
-#             # e.g. label_row["sidx"]
-#             sidx_label = label_row["sidx"]
-
-#             # Slide over this chunk
-#             if num_rows >= self.window_size:
-#                 num_windows = (num_rows - self.window_size) // self.stride + 1
-#                 for i in range(num_windows):
-#                     start_idx = i * self.stride
-#                     end_idx = start_idx + self.window_size
-#                     window_data = chunk_values[start_idx:end_idx]
-#                     # Transpose to [num_features, window_size]
-#                     window_data = window_data.T
-
-#                     self.windows.append(window_data)
-#                     self.targets.append(sidx_label)
+#         # i think if i get the whole dataset it would be shape:
+#         # (N / window_size), num features, window_size
+        
 
 #     def __len__(self):
 #         return len(self.windows)
 
+#     # get one item with idx aka tidx
 #     def __getitem__(self, idx):
-#         window = self.windows[idx]
-#         label = self.targets[idx]
-#         # Convert to torch tensors
+#         window = self.windows[idx]  # shape: (num_features, window_size)
+#         label = self.targets[idx] # (,window_size) ??
+
 #         window_tensor = torch.tensor(window, dtype=torch.float32)
-#         label_tensor = torch.tensor(label, dtype=torch.long)
+#         label_tensor = torch.tensor(label, dtype=torch.int8) # should be int as sidx is from 20-24
 #         return window_tensor, label_tensor
 
 
+
 class SlidingWindowDataset(Dataset):
-    """
-    A dataset that:
-      - Reads CSV data (with columns gidx, widx, tidx, plus feature columns)
-      - Reads CSV labels (with columns gidx, widx, sidx, etc.)
-      - Groups data by (gidx, widx), then slides over each chunk to produce sub-windows
-      - Assigns each sub-window the label from that chunk's (gidx, widx).
-    """
     def __init__(self, data_file, label_file, window_size, stride):
-        # Load CSV data
+        # Read data
         try:
             raw_data = pd.read_csv(data_file, engine='python')
         except Exception as e:
             raise ValueError(f"Error reading data file {data_file}: {e}")
 
-        # Load CSV labels
+        # Read labels
         try:
             raw_labels = pd.read_csv(label_file, engine='python')
         except Exception as e:
             raise ValueError(f"Error reading label file {label_file}: {e}")
 
-        # Filter data to keep only rows whose gidx is in the label file
+        # Filter data to keep only gidx present in labels
         valid_gidx = set(raw_labels["gidx"])
         raw_data = raw_data[raw_data["gidx"].isin(valid_gidx)]
 
         self.window_size = window_size
         self.stride = stride
 
-        # Keep references for debugging/testing (optional)
+        # Keep a reference for unit-testing or debugging
         self.raw_data = raw_data.reset_index(drop=True)
         self.raw_labels = raw_labels.reset_index(drop=True)
 
-        # Build a lookup: (gidx, widx) -> label row
-        # Assume exactly 1 row per (gidx, widx) in your label CSV
+        # Build (gidx, widx) -> label lookup (assuming exactly one row per (gidx,widx) in label_file)
         label_lookup = raw_labels.set_index(["gidx", "widx"])
 
+        # We'll store all sub-windows and labels here
         self.windows = []
         self.targets = []
 
-        # Group data by (gidx, widx) and slide within each chunk
+        # Group by (gidx, widx)
         grouped = raw_data.groupby(["gidx", "widx"], sort=False)
 
         for (g, w), chunk_df in grouped:
-            # Sort by tidx to ensure chronological order
+            # Sort by tidx to ensure correct time order
             chunk_df = chunk_df.sort_values("tidx")
-
-            # Drop ID columns, leaving only feature columns
             chunk_values = chunk_df.drop(columns=["gidx", "widx", "tidx"]).values
             num_rows = len(chunk_values)
 
-            # Look up label for (gidx, widx)
+            # If no matching label found, skip or raise
             if (g, w) not in label_lookup.index:
-                # If no label, skip or raise an error
                 continue
 
             label_row = label_lookup.loc[(g, w)]
-            sidx_label = label_row["sidx"]  # e.g. integer label
+            # e.g. label_row["sidx"]
+            sidx_label = label_row["sidx"]
 
-            # Slide over time with window_size, stride
+            # Slide over this chunk
             if num_rows >= self.window_size:
                 num_windows = (num_rows - self.window_size) // self.stride + 1
-
                 for i in range(num_windows):
                     start_idx = i * self.stride
                     end_idx = start_idx + self.window_size
                     window_data = chunk_values[start_idx:end_idx]
-
                     # Transpose to [num_features, window_size]
                     window_data = window_data.T
 
@@ -156,17 +112,17 @@ class SlidingWindowDataset(Dataset):
         return len(self.windows)
 
     def __getitem__(self, idx):
-        window = self.windows[idx]  # shape: [num_features, window_size]
+        window = self.windows[idx]
         label = self.targets[idx]
-        # Convert to PyTorch tensors
+        # Convert to torch tensors
         window_tensor = torch.tensor(window, dtype=torch.float32)
         label_tensor = torch.tensor(label, dtype=torch.long)
         return window_tensor, label_tensor
 
 
-
-
 if __name__ == "__main__":
+
+
 
     def run_test(test_func):
         """
@@ -184,9 +140,9 @@ if __name__ == "__main__":
         wrapper()
 
     # Setup for all tests
-    data_file = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms", "training.csv")
-    label_file = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms", "training_y.csv")
-    window_size = 30
+    data_file = os.path.join("data", "2024-11-24T08_57_30_d300sec_w250ms", "training.csv")
+    label_file = os.path.join("data", "2024-11-24T08_57_30_d300sec_w250ms", "training_y.csv")
+    window_size = 15
     stride = 15
 
     # Create dataset
@@ -196,6 +152,8 @@ if __name__ == "__main__":
         window_size=window_size,
         stride=stride,
     )
+
+ 
 
     raw_data = pd.read_csv(data_file, engine='python')
     raw_labels = pd.read_csv(label_file, engine='python')

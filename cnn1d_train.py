@@ -11,7 +11,7 @@ from cnn1d_model import CNN1D
 
 # Parameters
 num_features = 72  # Adjust if different
-window_size = 30
+window_size = 60
 stride = 15
 num_classes = 5
 batch_size = 32
