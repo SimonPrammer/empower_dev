@@ -9,8 +9,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import torch.optim as optim
-from cnn1d_dataset import Cnn1dDataset
-from cnn1d_model import CNN1D
+from cnn2d_dataset import Cnn2dDataset
+from cnn2d_model import CNN2D
 
 
 # Parameters
@@ -31,18 +31,20 @@ test_data_file = os.path.join(data_dir, "testing.csv")
 test_label_file = os.path.join(data_dir, "testing_y.csv")
 
 # Load datasets
-train_dataset = Cnn1dDataset(train_data_file, train_label_file, window_size)
-test_dataset = Cnn1dDataset(test_data_file, test_label_file, window_size)
+train_dataset = Cnn2dDataset(train_data_file, train_label_file, window_size)
+test_dataset = Cnn2dDataset(test_data_file, test_label_file, window_size)
 
 
-# Configuration for CNN1D
+# Configuration for CNN2D
 batch_size = 32
-num_features = train_dataset.windows.shape[1]  # Number of features per timestep
-sequence_length = train_dataset.windows.shape[2]  # Sequence length (window size)
-num_classes = len(torch.unique(train_dataset.targets))  # Unique class labels
+windows, _ = train_dataset[0]  # Get sample window to determine shape
+channels = windows.shape[1]  # Should be 1
+num_features = windows.shape[2] if len(windows.shape) == 4 else windows.shape[1]
+sequence_length = window_size
+num_classes = 5  # Known from dataset (20-24 mapped to 0-4)
 
 # Initialize the model
-model = CNN1D(num_features=num_features, sequence_length=sequence_length, num_classes=num_classes)
+model = CNN2D(num_features=num_features, sequence_length=sequence_length, num_classes=num_classes)
 
 
 # Sanity check
@@ -54,7 +56,7 @@ if len(test_dataset) == 0:
 # Test shape compatibility
 if len(train_dataset) > 0:
     sample_window, sample_label = train_dataset[0]
-    print(f"Sample window shape: {sample_window.shape} (should be [num_features, window_size])")
+    print(f"Sample window shape: {sample_window.shape} (should be [1, num_features, window_size])")
     print(f"Sample label: {sample_label}")
 
 # Split train dataset into training and validation sets
@@ -68,7 +70,7 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size)
 test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
 # Model, Loss, Optimizer
-model = CNN1D(num_features=num_features, sequence_length=window_size, num_classes=num_classes)
+model = CNN2D(num_features=num_features, sequence_length=window_size, num_classes=num_classes)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -133,4 +135,4 @@ avg_test_loss = test_loss / len(test_loader) if len(test_loader) > 0 else 0
 test_accuracy = 100.0 * correct / total if total > 0 else 0.0
 print(f"Test Loss: {avg_test_loss:.4f}, Test Accuracy: {test_accuracy:.2f}%")
 
-
+# %%

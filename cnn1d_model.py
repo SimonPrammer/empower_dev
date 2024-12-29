@@ -4,7 +4,7 @@ import os
 import torch
 import torch.nn as nn
 
-from sliding_window_dataset import SlidingWindowDataset
+from cnn1d_dataset import Cnn1dDataset
 
 class CNN1D(nn.Module):
     def __init__(self, num_features, sequence_length, num_classes):
@@ -25,9 +25,6 @@ class CNN1D(nn.Module):
     
     def forward(self, x):
         return self.layers(x)
-
-
-
 
 if __name__ == "__main__":
 
@@ -52,7 +49,7 @@ if __name__ == "__main__":
     label_file = os.path.join("data", "2024-11-24T08_57_30_d300sec_w250ms", "training_y.csv")
     window_size = 15
 
-    dataset = SlidingWindowDataset(data_file, label_file, window_size)
+    dataset = Cnn1dDataset(data_file, label_file, window_size)
 
     # Configuration for CNN1D
     batch_size = 1
