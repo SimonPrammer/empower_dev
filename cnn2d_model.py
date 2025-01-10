@@ -3,7 +3,7 @@
 import os
 import torch
 import torch.nn as nn
-
+from torch.utils.data import DataLoader
 from cnn2d_dataset import Cnn2dDataset
 
 class CNN2D(nn.Module):
@@ -81,7 +81,6 @@ if __name__ == "__main__":
     @run_test
     def test_real_data_batch():
         """Test if the model works with a batch of real dataset input."""
-        from torch.utils.data import DataLoader
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         for batch in dataloader:
             windows, labels = batch

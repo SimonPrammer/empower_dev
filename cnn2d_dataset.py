@@ -1,6 +1,5 @@
 #%%
 import os
-import pandas as pd
 from cnn1d_dataset import Cnn1dDataset
 
 
