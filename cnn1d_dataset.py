@@ -12,28 +12,27 @@ class Cnn1dDataset(Dataset):
         self.windows = []
         self.targets = []
         
-        # Load data
+        #load data
         self.raw_data = pd.read_csv(data_file)
         self.raw_labels = pd.read_csv(label_file)
         
         # print(f"Number of label entries: {len(self.raw_labels)}")
         
-        # Create data lookup by grouping
+        # create data lookup by grouping
         data_lookup = self.raw_data.groupby(['gidx', 'widx'])
         
-        # Iterate over labels first
+        # iterate over labels
         for idx, label_row in self.raw_labels.iterrows():
             g = label_row['gidx']
             w = label_row['widx']
             
-            # Try to get corresponding data
             try:
                 group_df = data_lookup.get_group((g, w))
                 # Get data and label
                 data = group_df.drop(columns=['gidx', 'widx', 'tidx']).values
                 label = label_row['sidx']
                 
-                # Take exactly one window from start of sequence 
+                # Take one window from start of sequence 
                 if len(data) >= window_size:
                     window = data[:window_size].T
                     self.windows.append(window)
@@ -43,12 +42,12 @@ class Cnn1dDataset(Dataset):
                 print(f"Warning: No data found for gidx={g}, widx={w}")
                 continue
 
-        # Convert to tensors
+        #convert to tensors
         self.windows = torch.FloatTensor(np.array(self.windows))
         self.targets = torch.LongTensor(self.targets)
         self.original_targets = self.targets.clone()
 
-        # Normalize the data feature-wise
+        # normalize feature-wise
         self.normalize_windows()
 
         assert len(self.targets) == len(self.windows), "Number of targets and windows don't match"
