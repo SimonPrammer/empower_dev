@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import torch.optim as optim
-from cnn1d_dataset_relative import Cnn1dDataset
+from cnn1d_dataset import Cnn1dDataset
 from cnn1d_model import CNN1D
 
 
@@ -31,8 +31,8 @@ test_data_file = os.path.join(data_dir, "testing.csv")
 test_label_file = os.path.join(data_dir, "testing_y.csv")
 
 # Load datasets
-train_dataset = Cnn1dDataset(train_data_file, train_label_file, window_size)
-test_dataset = Cnn1dDataset(test_data_file, test_label_file, window_size)
+train_dataset = Cnn1dDataset(train_data_file, train_label_file, window_size, use_relative=True)
+test_dataset = Cnn1dDataset(test_data_file, test_label_file, window_size, use_relative=True)
 
 
 # Configuration for CNN1D

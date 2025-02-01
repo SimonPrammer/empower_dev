@@ -4,7 +4,7 @@ import math
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from rnn_dataset import RNNDataset
+from transformer_dataset import TransformerDataset
 
 # ----------------------
 # Positional Encoding
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     label_file = os.path.join("data", "2024-11-24T08_57_30_d300sec_w250ms", "training_y.csv")
     window_size = 15
 
-    dataset = RNNDataset(data_file, label_file, window_size)
+    dataset = TransformerDataset(data_file, label_file, window_size)
     num_classes = 5
     batch_size = 1
     # Get one sample to determine input dimensions
@@ -144,7 +144,3 @@ if __name__ == "__main__":
             )
             break
 
-    # Run the test
-    test_transformer_real_data_batch()
-
-# %%

@@ -2,7 +2,7 @@ import os
 from cnn1d_dataset import Cnn1dDataset
 
 
-class RNNDataset(Cnn1dDataset):
+class TransformerDataset(Cnn1dDataset):
     def __init__(self, data_file, label_file, window_size, use_relative=False):
         super().__init__(data_file, label_file, window_size, use_relative)
 
