@@ -8,7 +8,7 @@ class TransformerDataset(Cnn1dDataset):
 
     def __getitem__(self, idx):
         # Reshape from [num_features, time] -> [time, num_features]
-        window = self.windows[idx].transpose(1, 0)  # Swap axes for RNN compatibility
+        window = self.windows[idx].transpose(1, 0)  # Swap axes for Transformer compatibility
         label = self.targets[idx]  # Transform labels from 20-24 to 0-4
         return window, label  # Returns (time, features), label
     

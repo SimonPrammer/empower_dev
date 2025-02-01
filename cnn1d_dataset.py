@@ -34,7 +34,7 @@ class Cnn1dDataset(Dataset):
             w = label_row['widx']
             
             try:
-                group_df = data_lookup.get_group((g, w))
+                group_df = data_lookup.get_group((g, w)) #.sort_values('tidx')
                 # Drop non-sensor columns and get sensor data
                 data = group_df.drop(columns=['gidx', 'widx', 'tidx']).values
                 label = label_row['sidx']
@@ -59,12 +59,14 @@ class Cnn1dDataset(Dataset):
         self.targets = torch.LongTensor(self.targets) - 20
         self.original_targets = self.targets.clone() + 20  # Keep a copy of the original labels
 
+        # interresting insights:
+        # normalize first -> z-scores -> RNN/Transformers can't learn anything from the data 
+        # only relative - no normalization -> RNN/Transformer learn something but quite slow
+        # relative + normalize after -> RNN/Transformer learn well
+        
+        # self.normalize_windows()
 
-
-        # normalize
-        self.normalize_windows()
-
-        # compute relative AFTER normalizing
+        # noticed a big difference for RNNs/Transformers if we normalize before/after relative values or not normalize at all.
         if self.use_relative:
             # Compute differences along the time axis.
             # For each sample, for each feature: diff = current - previous.
@@ -73,12 +75,19 @@ class Cnn1dDataset(Dataset):
             pad = torch.zeros((self.windows.shape[0], self.windows.shape[1], 1), dtype=self.windows.dtype)
             self.windows = torch.cat([pad, windows_diff], dim=2)
         
+        self.normalize_windows()
+
         # Check consistency.
         assert len(self.targets) == len(self.windows), "Number of targets and windows don't match"
 
     def normalize_windows(self):
         """Normalize the windows feature-wise."""
         # Mean and std computed over all samples and time steps for each feature.
+
+        # (0,1) seems to perform a lot worse than (0,2)
+        # mean = self.windows.mean(dim=(0, 1), keepdim=True)
+        # std = self.windows.std(dim=(0, 1), keepdim=True)
+
         mean = self.windows.mean(dim=(0, 2), keepdim=True)
         std = self.windows.std(dim=(0, 2), keepdim=True)
         self.windows = (self.windows - mean) / (std + 1e-6)
