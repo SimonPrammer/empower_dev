@@ -40,8 +40,8 @@ test_label_file = os.path.join(data_dir, "testing_y.csv")
 # Load and split datasets
 # ===========================
 # Note: The TransformerDataset is reused here; if it accepts a "use_relative" flag, pass it along.
-train_dataset = TransformerDataset(train_data_file, train_label_file, window_size, use_relative=False)
-test_dataset = TransformerDataset(test_data_file, test_label_file, window_size, use_relative=False)
+train_dataset = TransformerDataset(train_data_file, train_label_file, window_size, use_relative=True)
+test_dataset = TransformerDataset(test_data_file, test_label_file, window_size, use_relative=True)
 
 # Split training dataset into training and validation sets
 train_size = int((1 - validation_split) * len(train_dataset))

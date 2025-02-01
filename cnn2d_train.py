@@ -18,7 +18,7 @@ num_features = 72
 window_size = 60  # Adjust per file
 num_classes = 5
 batch_size = 32
-num_epochs = 20
+num_epochs = 10
 learning_rate = 0.001
 validation_split = 0.2
 
@@ -31,8 +31,8 @@ test_data_file = os.path.join(data_dir, "testing.csv")
 test_label_file = os.path.join(data_dir, "testing_y.csv")
 
 # Load datasets
-train_dataset = Cnn2dDataset(train_data_file, train_label_file, window_size)
-test_dataset = Cnn2dDataset(test_data_file, test_label_file, window_size)
+train_dataset = Cnn2dDataset(train_data_file, train_label_file, window_size, use_relative=True)
+test_dataset = Cnn2dDataset(test_data_file, test_label_file, window_size, use_relative=True)
 
 
 # Configuration for CNN2D
