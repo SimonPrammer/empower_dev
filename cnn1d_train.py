@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import torch.optim as optim
-from cnn1d_dataset import Cnn1dDataset
+from cnn1d_dataset_relative import Cnn1dDataset
 from cnn1d_model import CNN1D
 
 
@@ -18,7 +18,7 @@ num_features = 72
 window_size = 60  # Adjust per file
 num_classes = 5
 batch_size = 32
-num_epochs = 20
+num_epochs = 40
 learning_rate = 0.001
 validation_split = 0.2
 

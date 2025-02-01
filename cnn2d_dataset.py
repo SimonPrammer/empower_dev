@@ -4,8 +4,8 @@ from cnn1d_dataset import Cnn1dDataset
 
 
 class Cnn2dDataset(Cnn1dDataset):
-    def __init__(self, data_file, label_file, window_size):
-        super().__init__(data_file, label_file, window_size)
+    def __init__(self, data_file, label_file, window_size, use_relative=False):
+        super().__init__(data_file, label_file, window_size, use_relative)
         # Reshape from [batch_size, num_features, window_size] -> [batch_size, channels=1, num_features, window_size]
         self.windows = self.windows.unsqueeze(1)
 
