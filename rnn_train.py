@@ -16,9 +16,7 @@ import numpy as np
 from rnn_dataset import RNNDataset
 from rnn_model import RNNModel
 
-# ----------------------------
-# Parameters & Hyperparameters
-# ----------------------------
+# config
 num_features = 72
 window_size = 60
 num_classes = 5
@@ -29,9 +27,7 @@ validation_split = 0.2
 hidden_size = 128
 num_layers = 2
 
-# ----------------------------
-# File paths
-# ----------------------------
+# paths
 data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
 data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
 save_model_dir = os.path.join("saved_models", "rnn_normalized_absolute_w1000ms.pth")
@@ -42,9 +38,7 @@ train_label_file = os.path.join(data_dir, "training_y.csv")
 test_data_file = os.path.join(data_dir, "testing.csv")
 test_label_file = os.path.join(data_dir, "testing_y.csv")
 
-# ----------------------------
-# Load datasets & DataLoaders
-# ----------------------------
+# data and loaders
 train_dataset = RNNDataset(train_data_file, train_label_file, window_size, normalize_after=True, use_relative=False)
 test_dataset = RNNDataset(test_data_file, test_label_file, window_size, normalize_after=True, use_relative=False)
 
@@ -57,9 +51,7 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader   = DataLoader(val_dataset, batch_size=batch_size)
 test_loader  = DataLoader(test_dataset, batch_size=batch_size)
 
-# ----------------------------
-# Model, Loss, Optimizer
-# ----------------------------
+# model
 model = RNNModel(input_size=num_features, 
                  hidden_size=hidden_size,
                  num_layers=num_layers,
@@ -67,17 +59,12 @@ model = RNNModel(input_size=num_features,
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# ----------------------------
-# Containers for Metrics Tracking
-# ----------------------------
 train_losses = []
 val_losses = []
 train_acc_list = []
 val_acc_list = []
 
-# ----------------------------
-# Training Loop
-# ----------------------------
+# train
 print("Starting training...")
 training_start_time = time.time()
 
@@ -132,20 +119,15 @@ training_end_time = time.time()
 total_training_time = training_end_time - training_start_time
 print(f"Total Training Time: {total_training_time:.2f} seconds (avg {total_training_time/num_epochs:.2f} sec/epoch)")
 
-# ----------------------------
-# Save the Model
-# ----------------------------
+# save model
 torch.save(model.state_dict(), save_model_dir)
 
-# ----------------------------
-# Testing Phase & Metrics Collection
-# ----------------------------
+# testing and metrics
 model.eval()
 test_loss = 0.0
 correct_test = 0
 total_test = 0
 
-# Containers to store predictions and ground-truth labels for reporting
 all_test_preds = []
 all_test_labels = []
 
@@ -190,9 +172,7 @@ ax_cm.set_xlabel("Predicted Label")
 ax_cm.set_ylabel("True Label")
 ax_cm.set_title("Confusion Matrix")
 
-# ----------------------------
-# Learning Curves: Loss & Accuracy
-# ----------------------------
+
 fig_lc, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(12, 5))
 # Loss curves
 ax_loss.plot(train_losses, label='Training Loss', marker='o')
@@ -212,16 +192,11 @@ ax_acc.legend()
 
 fig_lc.tight_layout()
 
-# ----------------------------
-# Model Size Information
-# ----------------------------
+
 model_size_bytes = os.path.getsize(save_model_dir)
 model_size_mb = model_size_bytes / (1024 * 1024)
 print(f"Model Size: {model_size_mb:.2f} MB")
 
-# ----------------------------
-# PDF Report Generation
-# ----------------------------
 with PdfPages(run_reports_dir) as pdf:
     # Summary Page
     fig_summary = plt.figure(figsize=(8.5, 11))

@@ -16,9 +16,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from cnn2d_dataset import Cnn2dDataset
 from cnn2d_model import CNN2D
 
-# ----------------------------
-# Directories & File Paths
-# ----------------------------
+# paths
 data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
 save_model_dir = os.path.join("saved_models", "cnn2d_model_normalized_after_relative_w1000ms.pth")
 run_reports_dir = os.path.join("run_reports", "cnn2d_model_normalized_after_relative_w1000ms.pdf")
@@ -28,9 +26,7 @@ train_label_file = os.path.join(data_dir, "training_y.csv")
 test_data_file = os.path.join(data_dir, "testing.csv")
 test_label_file = os.path.join(data_dir, "testing_y.csv")
 
-# ----------------------------
-# Hyperparameters & Settings
-# ----------------------------
+# config
 window_size = 60          # Window length (sequence length)
 batch_size = 32
 num_epochs = 20
@@ -38,13 +34,10 @@ learning_rate = 0.001
 validation_split = 0.2
 num_classes = 5           # Known from dataset mapping
 
-# ----------------------------
-# Data Loading
-# ----------------------------
+# data
 train_dataset = Cnn2dDataset(train_data_file, train_label_file, window_size, normalize_after=True, use_relative=True)
 test_dataset = Cnn2dDataset(test_data_file, test_label_file, window_size, normalize_after=True, use_relative=True)
 
-# Determine configuration parameters from the dataset
 if len(train_dataset) > 0:
     sample_window, sample_label = train_dataset[0]
     # Expected shape: [channels, num_features, window_size] (e.g., [1, num_features, window_size])
@@ -62,34 +55,27 @@ if len(test_dataset) == 0:
 
 sequence_length = window_size
 
-# Split training dataset into training and validation sets
+# split train,val
 train_size = int((1 - validation_split) * len(train_dataset))
 val_size = len(train_dataset) - train_size
 train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
-# Create DataLoaders
+# dataLoaders
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size)
 test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
-# ----------------------------
-# Model, Loss, Optimizer
-# ----------------------------
+# model
 model = CNN2D(num_features=num_features, sequence_length=sequence_length, num_classes=num_classes)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# ----------------------------
-# Containers for Metrics Tracking
-# ----------------------------
 train_losses = []
 val_losses = []
 train_acc_list = []
 val_acc_list = []
 
-# ----------------------------
-# Training Loop
-# ----------------------------
+# train
 print("Starting training...")
 training_start_time = time.time()
 
@@ -146,20 +132,15 @@ total_training_time = training_end_time - training_start_time
 print(f"Total Training Time: {total_training_time:.2f} seconds. "
       f"Train time per epoch: {total_training_time/num_epochs:.2f} seconds")
 
-# ----------------------------
-# Save the Model
-# ----------------------------
+# save model
 torch.save(model.state_dict(), save_model_dir)
 
-# ----------------------------
-# Testing Phase & Metrics Collection
-# ----------------------------
+# testing and metrics
 model.eval()
 test_loss = 0.0
 correct_test = 0
 total_test = 0
 
-# Containers for storing predictions, true labels, and probabilities
 all_test_preds = []
 all_test_labels = []
 all_test_probs = []
@@ -195,9 +176,6 @@ all_test_preds = np.concatenate(all_test_preds)
 all_test_labels = np.concatenate(all_test_labels)
 all_test_probs = np.concatenate(all_test_probs)
 
-# ----------------------------
-# Classification Report & Confusion Matrix
-# ----------------------------
 clf_report = classification_report(
     all_test_labels, all_test_preds,
     target_names=[f"Class {i}" for i in range(num_classes)]
@@ -215,9 +193,6 @@ ax_cm.set_xlabel("Predicted Label")
 ax_cm.set_ylabel("True Label")
 ax_cm.set_title("Confusion Matrix")
 
-# ----------------------------
-# Precision-Recall Curves
-# ----------------------------
 fig_pr, ax_pr = plt.subplots(figsize=(8, 6))
 for class_idx in range(num_classes):
     binary_labels = (all_test_labels == class_idx).astype(int)
@@ -229,9 +204,7 @@ ax_pr.set_ylabel("Precision")
 ax_pr.set_title("Precision-Recall Curves")
 ax_pr.legend()
 
-# ----------------------------
-# Learning Curves: Loss & Accuracy
-# ----------------------------
+
 fig_lc, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(12, 5))
 # Loss curves
 ax_loss.plot(train_losses, label='Training Loss', marker='o')
@@ -251,16 +224,12 @@ ax_acc.legend()
 
 fig_lc.tight_layout()
 
-# ----------------------------
-# Model Size Information
-# ----------------------------
+# model info
 model_size_bytes = os.path.getsize(save_model_dir)
 model_size_mb = model_size_bytes / (1024 * 1024)
 print(f"Model Size: {model_size_mb:.2f} MB")
 
-# ----------------------------
-# PDF Report Generation
-# ----------------------------
+# generate report
 with PdfPages(run_reports_dir) as pdf:
     # Summary Page
     fig_summary = plt.figure(figsize=(8.5, 11))

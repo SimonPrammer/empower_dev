@@ -16,9 +16,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from cnn1d_dataset import Cnn1dDataset
 from cnn1d_model import CNN1D
 
-# ----------------------------
-# Directories & File Paths
-# ----------------------------
+# paths
 data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
 save_model_dir = os.path.join("saved_models", 'cnn1d_normalized_before_relative_w1000ms.pth')
 run_reports_dir = os.path.join("run_reports", 'cnn1d_normalized_before_relative_w1000ms.pdf')
@@ -28,66 +26,54 @@ train_label_file = os.path.join(data_dir, "training_y.csv")
 test_data_file = os.path.join(data_dir, "testing.csv")
 test_label_file = os.path.join(data_dir, "testing_y.csv")
 
-# ----------------------------
-# Hyperparameters & Settings
-# ----------------------------
+# hyperparams
 window_size = 60          # Window length (sequence length)
 batch_size = 32
 num_epochs = 40
 learning_rate = 0.001
 validation_split = 0.2
 
-# ----------------------------
-# Data Loading
-# ----------------------------
+# data loading
 train_dataset = Cnn1dDataset(train_data_file, train_label_file, window_size, use_relative=True, normalize_before=True)
 test_dataset = Cnn1dDataset(test_data_file, test_label_file, window_size, use_relative=True, normalize_before=True)
 
-# Determine configuration parameters from the dataset
+
 num_features = train_dataset.windows.shape[1]  # Number of features per timestep
 sequence_length = train_dataset.windows.shape[2]  # Should be equal to window_size
 num_classes = len(torch.unique(train_dataset.targets))  # Unique class labels
 
-# Sanity checks
+# sanity checks
 if len(train_dataset) == 0:
     print("Warning: Train dataset is empty after grouping/filtering.")
 if len(test_dataset) == 0:
     print("Warning: Test dataset is empty after grouping/filtering.")
 
-# Display sample shape and label
 if len(train_dataset) > 0:
     sample_window, sample_label = train_dataset[0]
     print(f"Sample window shape: {sample_window.shape} (expected: [num_features, window_size])")
     print(f"Sample label: {sample_label}")
 
-# Split training dataset into training and validation sets
+# train,val split
 train_size = int((1 - validation_split) * len(train_dataset))
 val_size = len(train_dataset) - train_size
 train_dataset, val_dataset = random_split(train_dataset, [train_size, val_size])
 
-# Create DataLoaders
+# dataloaders
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size)
 test_loader = DataLoader(test_dataset, batch_size=batch_size)
 
-# ----------------------------
-# Model, Loss, Optimizer
-# ----------------------------
+# model, loss, optimizer
 model = CNN1D(num_features=num_features, sequence_length=window_size, num_classes=num_classes)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# ----------------------------
-# Containers for Metrics Tracking
-# ----------------------------
 train_losses = []
 val_losses = []
 train_acc_list = []
 val_acc_list = []
 
-# ----------------------------
-# Training Loop
-# ----------------------------
+# train
 print("Starting training...")
 training_start_time = time.time()
 
@@ -107,7 +93,7 @@ for epoch in range(num_epochs):
 
         epoch_train_loss += loss.item()
 
-        # Calculate training accuracy for the batch
+        # calculate training accuracy for the batch
         _, predicted = torch.max(outputs, 1)
         total_train += labels.size(0)
         correct_train += (predicted == labels).sum().item()
@@ -118,7 +104,7 @@ for epoch in range(num_epochs):
     train_losses.append(avg_train_loss)
     train_acc_list.append(train_accuracy)
 
-    # Validation phase
+    # validation phase
     model.eval()
     epoch_val_loss = 0.0
     correct_val = 0
@@ -146,20 +132,15 @@ training_end_time = time.time()
 total_training_time = training_end_time - training_start_time
 print(f"Total Training Time: {total_training_time:.2f} seconds. Train time per epoch: {total_training_time/num_epochs:.2f} seconds")
 
-# ----------------------------
-# Save the Model
-# ----------------------------
+# save model
 torch.save(model.state_dict(), save_model_dir)
 
-# ----------------------------
-# Testing Phase & Metrics Collection
-# ----------------------------
+# testing and get metrics
 model.eval()
 test_loss = 0.0
 correct_test = 0
 total_test = 0
 
-# Containers to store predictions and ground-truth labels
 all_test_preds = []
 all_test_labels = []
 
@@ -191,9 +172,7 @@ print(f"Total Inference Time on test set: {inference_time:.2f} seconds")
 all_test_preds = np.concatenate(all_test_preds)
 all_test_labels = np.concatenate(all_test_labels)
 
-# ----------------------------
-# Classification Report & Confusion Matrix
-# ----------------------------
+# report, confusion matrix
 clf_report = classification_report(all_test_labels, all_test_preds,
                                    target_names=[f"Class {i}" for i in range(num_classes)])
 print("\nClassification Report:")
@@ -209,9 +188,7 @@ ax_cm.set_xlabel("Predicted Label")
 ax_cm.set_ylabel("True Label")
 ax_cm.set_title("Confusion Matrix")
 
-# ----------------------------
-# Precision-Recall Curves
-# ----------------------------
+# precision-Recall Curves
 all_test_probs = []
 with torch.no_grad():
     for inputs, labels in test_loader:
@@ -232,9 +209,7 @@ ax_pr.set_ylabel("Precision")
 ax_pr.set_title("Precision-Recall Curves")
 ax_pr.legend()
 
-# ----------------------------
-# Learning Curves: Loss & Accuracy
-# ----------------------------
+# learning Curves
 fig_lc, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(12, 5))
 # Loss curves
 ax_loss.plot(train_losses, label='Training Loss', marker='o')
@@ -244,7 +219,7 @@ ax_loss.set_xlabel("Epoch")
 ax_loss.set_ylabel("Loss")
 ax_loss.legend()
 
-# Accuracy curves
+# accuracy curves
 ax_acc.plot(train_acc_list, label='Training Accuracy', marker='o')
 ax_acc.plot(val_acc_list, label='Validation Accuracy', marker='o')
 ax_acc.set_title("Accuracy Curve")
@@ -254,16 +229,12 @@ ax_acc.legend()
 
 fig_lc.tight_layout()
 
-# ----------------------------
-# Model Size Information
-# ----------------------------
+# model info
 model_size_bytes = os.path.getsize(save_model_dir)
 model_size_mb = model_size_bytes / (1024 * 1024)
 print(f"Model Size: {model_size_mb:.2f} MB")
 
-# ----------------------------
-# PDF Report Generation
-# ----------------------------
+# pdf report
 with PdfPages(run_reports_dir) as pdf:
     # Summary Page
     fig_summary = plt.figure(figsize=(8.5, 11))

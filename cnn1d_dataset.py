@@ -172,6 +172,8 @@ if __name__ == "__main__":
             assert window_abs.shape == window_rel.shape, f"Shape mismatch in sample {i}: {window_abs.shape} vs {window_rel.shape}"
 
 
+#%%
+# additional tests in second cell
 
     import torch
     import os

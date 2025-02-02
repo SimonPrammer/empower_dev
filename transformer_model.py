@@ -6,9 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformer_dataset import TransformerDataset
 
-# ----------------------
-# Positional Encoding
-# ----------------------
+# positional encoding
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
         """
@@ -36,9 +34,7 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:, :x.size(1)]
         return self.dropout(x)
 
-# ----------------------
-# Transformer Model
-# ----------------------
+# transformer
 class TransformerModel(nn.Module):
     def __init__(self, input_size, d_model, num_heads, num_layers, num_classes, dropout=0.1):
         """
@@ -83,9 +79,7 @@ class TransformerModel(nn.Module):
         out = self.fc(x[:, -1, :])
         return out
 
-# ----------------------
-# Testing the Transformer with Real Data
-# ----------------------
+# tests
 if __name__ == "__main__":
 
     def run_test(test_func):

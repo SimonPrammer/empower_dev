@@ -41,9 +41,7 @@ train_label_file = os.path.join(data_dir, "training_y.csv")
 test_data_file = os.path.join(data_dir, "testing.csv")
 test_label_file = os.path.join(data_dir, "testing_y.csv")
 
-# ----------------------------
-# Data Loading
-# ----------------------------
+# data and loader
 train_dataset = TransformerDataset(train_data_file, train_label_file, window_size, normalize_before=True, use_relative=False)
 test_dataset = TransformerDataset(test_data_file, test_label_file, window_size, normalize_before=True, use_relative=False)
 
@@ -55,9 +53,7 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader   = DataLoader(val_dataset, batch_size=batch_size)
 test_loader  = DataLoader(test_dataset, batch_size=batch_size)
 
-# ----------------------------
-# Model, Loss, Optimizer
-# ----------------------------
+# model
 model = TransformerModel(
     input_size=num_features,
     d_model=d_model,
@@ -69,9 +65,7 @@ model = TransformerModel(
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# ----------------------------
-# Training Loop (with tqdm & accuracy tracking)
-# ----------------------------
+
 train_losses = []
 val_losses = []
 train_acc_list = []
@@ -79,6 +73,9 @@ val_acc_list = []
 
 print("Starting training...")
 training_start_time = time.time()
+
+
+#train
 
 for epoch in range(num_epochs):
     model.train()
@@ -106,9 +103,7 @@ for epoch in range(num_epochs):
     train_losses.append(avg_train_loss)
     train_acc_list.append(train_accuracy)
 
-    # ----------------------------
-    # Validation Phase (with tqdm)
-    # ----------------------------
+    # validation
     model.eval()
     epoch_val_loss = 0.0
     correct_val = 0
@@ -141,9 +136,7 @@ print(f"Total Training Time: {total_training_time:.2f} seconds. Train time per e
 # Save the model
 torch.save(model.state_dict(), save_model_dir)
 
-# ----------------------------
-# Test Phase (with tqdm)
-# ----------------------------
+# test
 model.eval()
 test_loss = 0.0
 correct_test = 0
@@ -181,9 +174,7 @@ print(f"Total Inference Time on test set: {inference_time:.2f} seconds")
 all_test_preds = np.concatenate(all_test_preds)
 all_test_labels = np.concatenate(all_test_labels)
 
-# ----------------------------
-# Performance Metrics (Classification Report & Confusion Matrix)
-# ----------------------------
+# metrics
 clf_report = classification_report(all_test_labels, all_test_preds,
                                    target_names=[f"Class {i}" for i in range(num_classes)])
 print("\nClassification Report:")
@@ -198,12 +189,7 @@ sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
 ax_cm.set_xlabel("Predicted Label")
 ax_cm.set_ylabel("True Label")
 ax_cm.set_title("Confusion Matrix")
-# We won't call plt.show() here because we save the figures to the PDF later.
 
-# ----------------------------
-# Precision-Recall Curves for each class
-# ----------------------------
-# Get prediction probabilities for the test set
 all_test_probs = []
 with torch.no_grad():
     for inputs, labels in test_loader:
@@ -225,9 +211,7 @@ ax_pr.set_ylabel("Precision")
 ax_pr.set_title("Precision-Recall Curves")
 ax_pr.legend()
 
-# ----------------------------
-# Plot Learning Curves: Loss & Accuracy
-# ----------------------------
+
 fig_lc, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(12, 5))
 # Loss curve
 ax_loss.plot(train_losses, label='Training Loss', marker='o')
@@ -247,16 +231,12 @@ ax_acc.legend()
 
 fig_lc.tight_layout()
 
-# ----------------------------
-# Model Size
-# ----------------------------
+
 model_size_bytes = os.path.getsize(save_model_dir)
 model_size_mb = model_size_bytes / (1024 * 1024)
 print(f"Model Size: {model_size_mb:.2f} MB")
 
-# ----------------------------
-# Create PDF Report with all plots, metrics, and configuration details
-# ----------------------------
+# pdf report
 with PdfPages(run_reports_dir) as pdf:
     # Summary Page
     fig_summary = plt.figure(figsize=(8.5, 11))

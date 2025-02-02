@@ -1,4 +1,3 @@
-import os
 from cnn1d_dataset import Cnn1dDataset
 
 

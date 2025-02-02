@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     dataset = Cnn2dDataset(data_file, label_file, window_size)
 
-    # Configuration for CNN2D
+    # config
     batch_size = 1
     windows,labels = dataset[0] # Returns (batch, 1, features, time), label
    
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     num_classes = 5  # Known from dataset (20-24 mapped to 0-4)
 
 
-    # Initialize the model
+    # init model
     model = CNN2D(num_features=num_features, sequence_length=sequence_length, num_classes=num_classes)
 
     

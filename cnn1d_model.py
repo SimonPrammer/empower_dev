@@ -51,16 +51,16 @@ if __name__ == "__main__":
 
     dataset = Cnn1dDataset(data_file, label_file, window_size)
 
-    # Configuration for CNN1D
+    # config
     batch_size = 1
-    num_features = dataset.windows.shape[1]  # Number of features per timestep
-    sequence_length = dataset.windows.shape[2]  # Sequence length (window size)
-    num_classes = len(torch.unique(dataset.targets))  # Unique class labels
+    num_features = dataset.windows.shape[1]  # nr of features per timestep
+    sequence_length = dataset.windows.shape[2]  # sequence length (window size)
+    num_classes = len(torch.unique(dataset.targets))  # unique class labels
 
     print("num_features:",num_features)
     print("sequence_length:",sequence_length)
 
-    # Initialize the model
+    # model
     model = CNN1D(num_features=num_features, sequence_length=sequence_length, num_classes=num_classes)
 
     def test_output_shape():
@@ -73,8 +73,8 @@ if __name__ == "__main__":
     @run_test
     def test_dataset_input_shape():
         """Test if the model accepts input directly from the dataset."""
-        input_tensor, _ = dataset[0]  # Simulate a single window
-        input_tensor = input_tensor.unsqueeze(0)  # Add batch dimension
+        input_tensor, _ = dataset[0]  # simulate a single window
+        input_tensor = input_tensor.unsqueeze(0)  # add batch dimension
         output = model(input_tensor)
         assert output.shape == (1, num_classes), (
             f"Model did not produce expected output shape: {output.shape}, expected (1, {num_classes})"
@@ -106,7 +106,6 @@ if __name__ == "__main__":
                 f"Unexpected output shape for batch size {b_size}: {output.shape}, expected ({b_size}, {num_classes})"
             )
 
-    # Test using real data from the dataset
     @run_test
     def test_real_data_batch():
         """Test if the model works with a batch of real dataset input."""
