@@ -7,7 +7,7 @@ import numpy as np
 
 
 class Cnn1dDataset(Dataset):
-    def __init__(self, data_file, label_file, window_size, normalize_after=True, use_relative=False, normalize_before=False):
+    def __init__(self, data_file, label_file, window_size, normalize_after=False, use_relative=False, normalize_before=False):
         """
         Args:
             data_file (str): Path to the CSV file containing sensor data.

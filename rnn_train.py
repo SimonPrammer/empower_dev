@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 from sklearn.metrics import classification_report, confusion_matrix
+import numpy as np
 
 # Import your dataset and model classes
 from rnn_dataset import RNNDataset
@@ -22,7 +23,7 @@ num_features = 72
 window_size = 60
 num_classes = 5
 batch_size = 32
-num_epochs = 10
+num_epochs = 25
 learning_rate = 0.001
 validation_split = 0.2
 hidden_size = 128
@@ -44,8 +45,8 @@ test_label_file = os.path.join(data_dir, "testing_y.csv")
 # ----------------------------
 # Load datasets & DataLoaders
 # ----------------------------
-train_dataset = RNNDataset(train_data_file, train_label_file, window_size)
-test_dataset = RNNDataset(test_data_file, test_label_file, window_size)
+train_dataset = RNNDataset(train_data_file, train_label_file, window_size, normalize_after=True, use_relative=False)
+test_dataset = RNNDataset(test_data_file, test_label_file, window_size, normalize_after=True, use_relative=False)
 
 # Split train dataset into training and validation sets
 train_size = int((1 - validation_split) * len(train_dataset))
@@ -226,7 +227,7 @@ with PdfPages(run_reports_dir) as pdf:
     fig_summary = plt.figure(figsize=(8.5, 11))
     plt.axis('off')
     summary_text = (
-        "RNN Model Training Report\n\n"
+        f"{save_model_dir} Training Report\n\n"
         f"Total Training Time: {total_training_time:.2f} seconds\n"
         f"Average Time per Epoch: {total_training_time/num_epochs:.2f} seconds\n"
         f"Inference Time on Test Set: {inference_time:.2f} seconds\n\n"

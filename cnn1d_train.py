@@ -20,8 +20,8 @@ from cnn1d_model import CNN1D
 # Directories & File Paths
 # ----------------------------
 data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
-save_model_dir = os.path.join("saved_models", 'cnn1d_model_normalized_relative_w1000ms.pth')
-run_reports_dir = os.path.join("run_reports", 'cnn1d_model_normalized_relative_w1000ms.pdf')
+save_model_dir = os.path.join("saved_models", 'cnn1d_normalized_before_relative_w1000ms.pth')
+run_reports_dir = os.path.join("run_reports", 'cnn1d_normalized_before_relative_w1000ms.pdf')
 
 train_data_file = os.path.join(data_dir, "training.csv")
 train_label_file = os.path.join(data_dir, "training_y.csv")
@@ -40,8 +40,8 @@ validation_split = 0.2
 # ----------------------------
 # Data Loading
 # ----------------------------
-train_dataset = Cnn1dDataset(train_data_file, train_label_file, window_size, use_relative=True)
-test_dataset = Cnn1dDataset(test_data_file, test_label_file, window_size, use_relative=True)
+train_dataset = Cnn1dDataset(train_data_file, train_label_file, window_size, use_relative=True, normalize_before=True)
+test_dataset = Cnn1dDataset(test_data_file, test_label_file, window_size, use_relative=True, normalize_before=True)
 
 # Determine configuration parameters from the dataset
 num_features = train_dataset.windows.shape[1]  # Number of features per timestep
@@ -269,7 +269,7 @@ with PdfPages(run_reports_dir) as pdf:
     fig_summary = plt.figure(figsize=(8.5, 11))
     plt.axis('off')
     summary_text = (
-        f"CNN1D Model Training Report\n\n"
+        f"{save_model_dir} Training Report\n\n"
         f"Total Training Time: {total_training_time:.2f} seconds\n"
         f"Total Inference Time: {inference_time:.2f} seconds\n\n"
         f"Train time per epoch: {total_training_time/num_epochs:.2f} seconds\n\n"

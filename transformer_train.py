@@ -18,8 +18,8 @@ from transformer_model import TransformerModel
 
 # Directories
 data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
-save_model_dir = os.path.join("saved_models", 'transformer_model_normalized_relative_w1000ms.pth')
-run_reports_dir = os.path.join("run_reports", 'transformer_model_normalized_relative_w1000ms.pdf')
+save_model_dir = os.path.join("saved_models", 'transformer_normalized_absolute_w1000ms.pth')
+run_reports_dir = os.path.join("run_reports", 'transformer_normalized_absolute_w1000ms.pdf')
 
 # Configurations
 num_features = 72
@@ -44,8 +44,8 @@ test_label_file = os.path.join(data_dir, "testing_y.csv")
 # ----------------------------
 # Data Loading
 # ----------------------------
-train_dataset = TransformerDataset(train_data_file, train_label_file, window_size, use_relative=True)
-test_dataset = TransformerDataset(test_data_file, test_label_file, window_size, use_relative=True)
+train_dataset = TransformerDataset(train_data_file, train_label_file, window_size, normalize_before=True, use_relative=False)
+test_dataset = TransformerDataset(test_data_file, test_label_file, window_size, normalize_before=True, use_relative=False)
 
 train_size = int((1 - validation_split) * len(train_dataset))
 val_size = len(train_dataset) - train_size
@@ -262,7 +262,7 @@ with PdfPages(run_reports_dir) as pdf:
     fig_summary = plt.figure(figsize=(8.5, 11))
     plt.axis('off')
     summary_text = (
-        f"Transformer Model Training Report\n\n"
+        f"{save_model_dir} Training Report\n\n"
         f"Total Training Time: {total_training_time:.2f} seconds\n"
         f"Total Inference Time: {inference_time:.2f} seconds\n\n"
         f"Train time per epoch: {total_training_time/num_epochs:.2f} seconds\n\n"

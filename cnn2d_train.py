@@ -20,8 +20,8 @@ from cnn2d_model import CNN2D
 # Directories & File Paths
 # ----------------------------
 data_dir = os.path.join("data", "2024-11-24T10_13_28_d300sec_w1000ms")
-save_model_dir = os.path.join("saved_models", "cnn2d_model_normalized_relative_w1000ms.pth")
-run_reports_dir = os.path.join("run_reports", "cnn2d_model_normalized_relative_w1000ms.pdf")
+save_model_dir = os.path.join("saved_models", "cnn2d_model_normalized_after_relative_w1000ms.pth")
+run_reports_dir = os.path.join("run_reports", "cnn2d_model_normalized_after_relative_w1000ms.pdf")
 
 train_data_file = os.path.join(data_dir, "training.csv")
 train_label_file = os.path.join(data_dir, "training_y.csv")
@@ -33,7 +33,7 @@ test_label_file = os.path.join(data_dir, "testing_y.csv")
 # ----------------------------
 window_size = 60          # Window length (sequence length)
 batch_size = 32
-num_epochs = 30
+num_epochs = 20
 learning_rate = 0.001
 validation_split = 0.2
 num_classes = 5           # Known from dataset mapping
@@ -41,8 +41,8 @@ num_classes = 5           # Known from dataset mapping
 # ----------------------------
 # Data Loading
 # ----------------------------
-train_dataset = Cnn2dDataset(train_data_file, train_label_file, window_size, use_relative=True)
-test_dataset = Cnn2dDataset(test_data_file, test_label_file, window_size, use_relative=True)
+train_dataset = Cnn2dDataset(train_data_file, train_label_file, window_size, normalize_after=True, use_relative=True)
+test_dataset = Cnn2dDataset(test_data_file, test_label_file, window_size, normalize_after=True, use_relative=True)
 
 # Determine configuration parameters from the dataset
 if len(train_dataset) > 0:
@@ -266,7 +266,7 @@ with PdfPages(run_reports_dir) as pdf:
     fig_summary = plt.figure(figsize=(8.5, 11))
     plt.axis('off')
     summary_text = (
-        f"CNN2D Model Training Report\n\n"
+        f"{save_model_dir} Training Report\n\n"
         f"Total Training Time: {total_training_time:.2f} seconds\n"
         f"Total Inference Time: {inference_time:.2f} seconds\n\n"
         f"Train time per epoch: {total_training_time/num_epochs:.2f} seconds\n\n"
