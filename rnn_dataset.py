@@ -3,7 +3,7 @@ from cnn1d_dataset import Cnn1dDataset
 
 
 class RNNDataset(Cnn1dDataset):
-    def __init__(self, data_file, label_file, window_size, use_relative=False):
+    def __init__(self, data_file, label_file, window_size, normalize_after=True, use_relative=False, normalize_before=False):
         super().__init__(data_file, label_file, window_size, use_relative)
 
     def __getitem__(self, idx):

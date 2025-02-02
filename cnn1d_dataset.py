@@ -7,7 +7,7 @@ import numpy as np
 
 
 class Cnn1dDataset(Dataset):
-    def __init__(self, data_file, label_file, window_size, use_relative=False):
+    def __init__(self, data_file, label_file, window_size, normalize_after=True, use_relative=False, normalize_before=False):
         """
         Args:
             data_file (str): Path to the CSV file containing sensor data.
@@ -18,6 +18,8 @@ class Cnn1dDataset(Dataset):
         """
         self.window_size = window_size
         self.use_relative = use_relative
+        self.normalize_before = normalize_before
+        self.normalize_after = normalize_after
         raw_windows = []  # to store the raw (absolute) sensor windows
         self.targets = []
         
@@ -64,7 +66,8 @@ class Cnn1dDataset(Dataset):
         # only relative - no normalization -> RNN/Transformer learn something but quite slow
         # relative + normalize after -> RNN/Transformer learn well
         
-        # self.normalize_windows()
+        if self.normalize_before:
+            self.normalize_windows()
 
         # noticed a big difference for RNNs/Transformers if we normalize before/after relative values or not normalize at all.
         if self.use_relative:
@@ -75,7 +78,8 @@ class Cnn1dDataset(Dataset):
             pad = torch.zeros((self.windows.shape[0], self.windows.shape[1], 1), dtype=self.windows.dtype)
             self.windows = torch.cat([pad, windows_diff], dim=2)
         
-        self.normalize_windows()
+        if self.normalize_after:
+            self.normalize_windows()
 
         # Check consistency.
         assert len(self.targets) == len(self.windows), "Number of targets and windows don't match"
